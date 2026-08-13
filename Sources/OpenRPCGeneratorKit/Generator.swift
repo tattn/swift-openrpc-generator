@@ -85,12 +85,28 @@ public struct OpenRPCSwiftGenerator: Sendable {
                 )
             )
         ]
+        if !methods.notifications.isEmpty {
+            // The name goes through the registry too, so it cannot collide
+            // with schema types of the same name.
+            let notificationsRenderer = NotificationsRenderer(
+                access: access,
+                typeName: context.uniqueTypeName(baseName + "Notification")
+            )
+            files.append(
+                GeneratedFile(
+                    name: "\(notificationsRenderer.typeName).swift",
+                    contents: notificationsRenderer.render(
+                        notifications: methods.notifications,
+                        header: header
+                    )
+                ))
+        }
         if options.components.contains(.client) {
             files.append(
                 GeneratedFile(
                     name: "\(clientName).swift",
                     contents: ClientRenderer(access: access, clientName: clientName, errorTypeName: errorTypeName)
-                        .render(methods: methods, header: header)
+                        .render(methods: methods.calls, header: header)
                 ))
         }
         if options.components.contains(.server) {
@@ -104,7 +120,7 @@ public struct OpenRPCSwiftGenerator: Sendable {
             files.append(
                 GeneratedFile(
                     name: "\(serverRenderer.serverName).swift",
-                    contents: serverRenderer.render(methods: methods, header: header)
+                    contents: serverRenderer.render(methods: methods.calls, header: header)
                 ))
         }
         files.append(

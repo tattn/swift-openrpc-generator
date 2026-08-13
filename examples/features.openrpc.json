@@ -50,6 +50,41 @@
         "name": "tree",
         "schema": { "$ref": "features-shared.json#/schemas/TreeNode" }
       }
+    },
+    {
+      "name": "employee.hired",
+      "summary": "Announces a newly hired employee (server-to-client, by-name)",
+      "x-direction": "serverToClient",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "employee",
+          "required": true,
+          "schema": { "$ref": "#/components/schemas/Employee" }
+        },
+        {
+          "name": "note",
+          "schema": { "type": "string" }
+        }
+      ]
+    },
+    {
+      "name": "heartbeat",
+      "summary": "Signals that the server is alive (server-to-client, no params)",
+      "x-direction": "serverToClient",
+      "params": []
+    },
+    {
+      "name": "progress_changed",
+      "summary": "Reports progress of a long-running job (server-to-client, by-position)",
+      "x-direction": "serverToClient",
+      "params": [
+        {
+          "name": "ratio",
+          "required": true,
+          "schema": { "type": "number" }
+        }
+      ]
     }
   ],
   "components": {

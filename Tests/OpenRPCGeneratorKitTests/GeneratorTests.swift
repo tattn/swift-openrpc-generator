@@ -728,6 +728,107 @@ import Testing
         #expect(client.contains("public func getTree() async throws -> TreeNode {"))
     }
 
+    @Test("serverToClient methods generate a shared notification enum")
+    func serverToClientNotifications() throws {
+        let output = try generate(
+            """
+            {
+              "openrpc": "1.3.2",
+              "info": { "title": "Studio", "version": "0.1.0" },
+              "methods": [
+                {
+                  "name": "render.start",
+                  "params": [
+                    { "name": "sceneId", "required": true, "schema": { "type": "string" } }
+                  ],
+                  "result": { "name": "ok", "schema": { "type": "boolean" } }
+                },
+                {
+                  "name": "render.finished",
+                  "x-direction": "serverToClient",
+                  "paramStructure": "by-name",
+                  "params": [
+                    { "name": "sceneId", "required": true, "schema": { "type": "string" } },
+                    { "name": "frameCount", "schema": { "type": "integer" } }
+                  ]
+                },
+                {
+                  "name": "shutdown",
+                  "x-direction": "serverToClient",
+                  "deprecated": true,
+                  "params": []
+                }
+              ]
+            }
+            """)
+        #expect(output.warnings.isEmpty)
+
+        let notifications = try file(output, "StudioNotification.swift")
+        #expect(notifications.contains("public enum StudioNotification: Hashable, Sendable {"))
+        #expect(notifications.contains("    case renderFinished(sceneId: String, frameCount: Int?)"))
+        #expect(notifications.contains("    @available(*, deprecated)"))
+        #expect(notifications.contains("    case shutdown"))
+        #expect(notifications.contains("case .renderFinished: return \"render.finished\""))
+        #expect(notifications.contains("public func body() throws -> Data {"))
+        #expect(notifications.contains("public static func decode(_ body: Data) throws -> Self? {"))
+        #expect(notifications.contains("guard request.id == nil else { return nil }"))
+
+        // serverToClient methods are excluded from the client and the server.
+        let client = try file(output, "StudioClient.swift")
+        #expect(client.contains("renderStart"))
+        #expect(!client.contains("renderFinished"))
+        let server = try file(output, "StudioServer.swift")
+        #expect(!server.contains("render.finished"))
+        #expect(!server.contains("shutdown"))
+    }
+
+    @Test("A document without serverToClient methods generates no notification file")
+    func noNotificationFileWithoutServerToClientMethods() throws {
+        let output = try generate(
+            """
+            {
+              "openrpc": "1.3.2",
+              "info": { "title": "Plain", "version": "0.1.0" },
+              "methods": [
+                { "name": "ping", "params": [] }
+              ]
+            }
+            """)
+        #expect(!output.files.contains { $0.name == "PlainNotification.swift" })
+    }
+
+    @Test("serverToClient results, errors, and unknown directions warn")
+    func serverToClientWarnings() throws {
+        let output = try generate(
+            """
+            {
+              "openrpc": "1.3.2",
+              "info": { "title": "Warned", "version": "0.1.0" },
+              "methods": [
+                {
+                  "name": "job.finished",
+                  "x-direction": "serverToClient",
+                  "params": [],
+                  "result": { "name": "ok", "schema": { "type": "boolean" } },
+                  "errors": [ { "code": 1, "message": "nope" } ]
+                },
+                {
+                  "name": "ping",
+                  "x-direction": "sideways",
+                  "params": []
+                }
+              ]
+            }
+            """)
+        #expect(output.warnings.count == 3)
+        #expect(output.warnings.contains { $0.contains("job.finished") && $0.contains("result is ignored") })
+        #expect(output.warnings.contains { $0.contains("job.finished") && $0.contains("errors are ignored") })
+        #expect(output.warnings.contains { $0.contains("unknown x-direction \"sideways\"") })
+        // The unknown direction falls back to clientToServer.
+        let client = try file(output, "WarnedClient.swift")
+        #expect(client.contains("func ping()"))
+    }
+
     @Test("Swift keyword parameter names are escaped with backticks")
     func swiftKeywordParamIsEscaped() throws {
         let output = try generate(

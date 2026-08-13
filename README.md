@@ -51,6 +51,7 @@ The generated code is self-contained with no external dependencies. Add the outp
 | File | Contents |
 | --- | --- |
 | `<Base>Models.swift` | `Codable` models from `components/schemas` and inline schemas, plus the shared error enum |
+| `<Base>Notification.swift` | Server-to-client notifications (methods marked `x-direction: serverToClient`) as one enum both sides share; only emitted when the document declares some |
 | `<Base>Client.swift` | The client (protocol + struct) with one `async throws` function per method |
 | `<Base>Server.swift` | The server: a `<Base>Handler` protocol your app implements, plus a transport-agnostic dispatcher |
 | `JSONRPCRuntime.swift` | The JSON-RPC 2.0 runtime: envelopes, transports, `JSONValue`, and so on |
@@ -115,6 +116,44 @@ app.post("rpc") { request async throws -> Response in
 - Standard protocol errors (`-32700` parse, `-32600` invalid request, `-32601` method not found, `-32602` invalid params) are handled for you.
 - Notifications (requests without an `id`) get no response, as the spec requires.
 
+### Server-to-client notifications
+
+OpenRPC has no standard way to describe notifications the server pushes to
+clients, so this generator uses the `x-direction` extension: mark a method
+with `"x-direction": "serverToClient"` (and no `result`) and it is excluded
+from the client and the handler protocol. Instead, all such methods become
+one enum both sides share — the server encodes a case into a request body
+and pushes it over its transport, and clients decode incoming bodies back
+into a case:
+
+```json
+{
+  "name": "pet.adopted",
+  "x-direction": "serverToClient",
+  "paramStructure": "by-name",
+  "params": [
+    { "name": "pet", "required": true, "schema": { "$ref": "#/components/schemas/Pet" } }
+  ]
+}
+```
+
+```swift
+// Server side: encode and push over your transport of choice.
+let body = try PetstoreNotification.petAdopted(pet: pet).body()
+
+// Client side: decode incoming bodies; unknown methods return nil,
+// so newer servers stay compatible with older clients.
+if let notification = try PetstoreNotification.decode(body) {
+    switch notification {
+    case .petAdopted(let pet): ...
+    }
+}
+```
+
+`x-direction` accepts `"clientToServer"` (the default when omitted) and
+`"serverToClient"`. A `result` or `errors` on a serverToClient method is
+ignored with a warning: notifications get no response.
+
 ### WebSocket and peer-to-peer connections
 
 `WebSocketJSONRPCTransport` keeps one persistent connection with concurrent
@@ -154,6 +193,7 @@ let (first, second) = try await (pet, pets)  // one round trip
 - Method `errors` → a shared typed error enum: clients catch declared codes as `<Base>Error.petNotFound(...)`-style cases (undeclared codes still surface as `JSONRPCError.server`), and server handlers throw them via static factories
 - Params are sent by-position (as an array) by default, and as an object only when `paramStructure: "by-name"` is specified — the same behavior as the official [open-rpc/generator](https://github.com/open-rpc/generator)
 - Methods without a `result` are sent as JSON-RPC notifications (no `id`, no response awaited)
+- The `x-direction: "serverToClient"` extension → a shared notification enum for server-pushed notifications (see [Server-to-client notifications](#server-to-client-notifications))
 - `$ref` to `#/components/schemas/...` and `#/components/contentDescriptors/...`; `$ref`s to external documents (relative paths, or http(s) URLs with `--allow-remote-refs`) and `$ref`s inside `methods` are resolved by dereferencing the document before generation. External schemas on a reference cycle are hoisted into `components/schemas` automatically
 - `type: object` + `properties` → `struct` (optionality driven by `required`)
 - `allOf` → a single `struct` merging the properties of every branch (and the enclosing schema's own properties)

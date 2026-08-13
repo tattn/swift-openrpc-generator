@@ -109,9 +109,13 @@ public struct Method: Decodable, Sendable {
     /// "by-name" / "by-position" / "either" ("either" when omitted)
     public let paramStructure: String?
     public let deprecated: Bool?
+    /// The `x-direction` extension: "clientToServer" (default when omitted)
+    /// or "serverToClient" for notifications the server pushes to clients.
+    public let direction: String?
 
     private enum CodingKeys: String, CodingKey {
         case name, summary, description, params, result, errors, paramStructure, deprecated
+        case direction = "x-direction"
     }
 
     public init(from decoder: any Decoder) throws {
@@ -124,6 +128,7 @@ public struct Method: Decodable, Sendable {
         errors = try container.decodeIfPresent([MethodErrorOrReference].self, forKey: .errors) ?? []
         paramStructure = try container.decodeIfPresent(String.self, forKey: .paramStructure)
         deprecated = try container.decodeIfPresent(Bool.self, forKey: .deprecated)
+        direction = try container.decodeIfPresent(String.self, forKey: .direction)
     }
 }
 

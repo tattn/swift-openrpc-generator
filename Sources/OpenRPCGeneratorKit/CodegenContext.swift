@@ -145,6 +145,25 @@ struct MethodDecl {
     }
 }
 
+/// A server-to-client notification (`x-direction: serverToClient`), rendered
+/// as one case of the shared notification enum.
+struct NotificationDecl {
+    var rpcName: String
+    var caseName: String
+    var doc: String?
+    var deprecated: Bool
+    var params: [PropertyDecl]
+    var byPosition: Bool
+}
+
+/// The document's methods split by direction.
+struct ResolvedMethods {
+    /// Client-to-server methods, served by the handler and callable on the client.
+    var calls: [MethodDecl] = []
+    /// Server-to-client notifications, rendered as the shared notification enum.
+    var notifications: [NotificationDecl] = []
+}
+
 /// A case of the generated client-wide error enum, mapped by error code.
 struct ErrorCaseDecl {
     var caseName: String
@@ -278,24 +297,42 @@ final class CodegenContext {
 
     // MARK: - Methods
 
-    func resolveMethods() -> [MethodDecl] {
+    func resolveMethods() -> ResolvedMethods {
         var usedFuncNames: Set<String> = []
-        var methods: [MethodDecl] = []
+        var usedCaseNames: Set<String> = []
+        var resolved = ResolvedMethods()
         for entry in document.methods {
             switch entry {
             case .reference(let ref):
                 warn("$ref \"\(ref)\" in methods is not supported; skipped")
             case .value(let method):
-                methods.append(resolveMethod(method, usedFuncNames: &usedFuncNames))
+                if isServerToClient(method) {
+                    resolved.notifications.append(
+                        resolveNotification(method, usedCaseNames: &usedCaseNames))
+                } else {
+                    resolved.calls.append(resolveMethod(method, usedFuncNames: &usedFuncNames))
+                }
             }
         }
-        return methods
+        return resolved
     }
 
-    private func resolveMethod(_ method: Method, usedFuncNames: inout Set<String>) -> MethodDecl {
-        let funcName = SwiftNaming.uniqueMemberName(method.name, in: &usedFuncNames)
-        let hintBase = SwiftNaming.typeName(method.name)
+    private func isServerToClient(_ method: Method) -> Bool {
+        switch method.direction {
+        case nil, "clientToServer":
+            return false
+        case "serverToClient":
+            return true
+        case let direction?:
+            warn(
+                "Method \"\(method.name)\" has unknown x-direction \"\(direction)\"; treated as clientToServer"
+            )
+            return false
+        }
+    }
 
+    private func resolveParams(of method: Method) -> [PropertyDecl] {
+        let hintBase = SwiftNaming.typeName(method.name)
         var usedParamNames: Set<String> = []
         var params: [PropertyDecl] = []
         for entry in method.params {
@@ -310,6 +347,35 @@ final class CodegenContext {
                     usedNames: &usedParamNames
                 ))
         }
+        return params
+    }
+
+    private func resolveNotification(_ method: Method, usedCaseNames: inout Set<String>) -> NotificationDecl {
+        if method.result != nil {
+            warn(
+                "Method \"\(method.name)\" is serverToClient; its result is ignored (notifications get no response)"
+            )
+        }
+        if !method.errors.isEmpty {
+            warn(
+                "Method \"\(method.name)\" is serverToClient; its errors are ignored (notifications get no response)"
+            )
+        }
+        let doc = [method.summary, method.description].compactMap { $0 }.joined(separator: "\n\n")
+        return NotificationDecl(
+            rpcName: method.name,
+            caseName: SwiftNaming.uniqueMemberName(method.name, in: &usedCaseNames),
+            doc: doc.isEmpty ? nil : doc,
+            deprecated: method.deprecated ?? false,
+            params: resolveParams(of: method),
+            byPosition: method.paramStructure != "by-name"
+        )
+    }
+
+    private func resolveMethod(_ method: Method, usedFuncNames: inout Set<String>) -> MethodDecl {
+        let funcName = SwiftNaming.uniqueMemberName(method.name, in: &usedFuncNames)
+        let hintBase = SwiftNaming.typeName(method.name)
+        let params = resolveParams(of: method)
 
         var returnType: String?
         if let resultEntry = method.result {
