@@ -155,7 +155,7 @@ import Testing
             """)
         let server = try file(output, "PetstoreServer.swift")
         #expect(server.contains("public protocol PetstoreHandler: Sendable {"))
-        #expect(server.contains("    func getPet(petId: Int, verbose: Bool?) async throws -> String"))
+        #expect(server.contains("    @concurrent func getPet(petId: Int, verbose: Bool?) async throws -> String"))
         #expect(server.contains("        case \"get_pet\":"))
         // Required params throw -32602 when missing; optionals default to nil.
         #expect(
@@ -502,7 +502,7 @@ import Testing
         // The server maps typed errors back to error objects and routes methods.
         let server = try file(output, "ErrorsServer.swift")
         #expect(server.contains("public protocol ErrorsHandler: Sendable {"))
-        #expect(server.contains("    func getPet() async throws -> String"))
+        #expect(server.contains("    @concurrent func getPet() async throws -> String"))
         #expect(server.contains("public struct ErrorsServer: Sendable {"))
         // Typed errors reach the runtime via JSONRPCErrorConvertible, so the
         // generated server body has a single shape.

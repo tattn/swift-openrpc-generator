@@ -607,7 +607,8 @@ enum RuntimeTemplate {
                             do {
                                 try await self.sendMessage(rewritten)
                             } catch {
-                                await self.fail(id: id, with: error)
+                                // The Task inherits this actor's isolation, so the call is direct
+                                self.fail(id: id, with: error)
                             }
                         }
                     }

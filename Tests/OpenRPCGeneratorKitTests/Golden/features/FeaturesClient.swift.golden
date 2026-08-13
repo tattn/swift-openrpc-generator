@@ -9,15 +9,15 @@ import FoundationNetworking
 /// The generated client's interface. Useful for mocking in tests.
 public protocol FeaturesClientProtocol: Sendable {
     /// Returns an employee (allOf composition)
-    func getEmployee() async throws -> Employee
+    @concurrent func getEmployee() async throws -> Employee
     /// Returns an identifier that is either a string or an integer
-    func getId() async throws -> Identifier
+    @concurrent func getId() async throws -> Identifier
     /// Returns a mode drawn from mixed-type constants
-    func getMode() async throws -> Mode
+    @concurrent func getMode() async throws -> Mode
     /// Returns metadata using well-known string formats
-    func getDocument() async throws -> Document
+    @concurrent func getDocument() async throws -> Document
     /// Returns a recursive node defined in an external document
-    func getTree() async throws -> TreeNode
+    @concurrent func getTree() async throws -> TreeNode
 }
 
 public struct FeaturesClient: FeaturesClientProtocol {
@@ -33,27 +33,27 @@ public struct FeaturesClient: FeaturesClientProtocol {
     }
 
     /// Returns an employee (allOf composition)
-    public func getEmployee() async throws -> Employee {
+    @concurrent public func getEmployee() async throws -> Employee {
         return try await rpc.call(method: "get_employee")
     }
 
     /// Returns an identifier that is either a string or an integer
-    public func getId() async throws -> Identifier {
+    @concurrent public func getId() async throws -> Identifier {
         return try await rpc.call(method: "get_id")
     }
 
     /// Returns a mode drawn from mixed-type constants
-    public func getMode() async throws -> Mode {
+    @concurrent public func getMode() async throws -> Mode {
         return try await rpc.call(method: "get_mode")
     }
 
     /// Returns metadata using well-known string formats
-    public func getDocument() async throws -> Document {
+    @concurrent public func getDocument() async throws -> Document {
         return try await rpc.call(method: "get_document")
     }
 
     /// Returns a recursive node defined in an external document
-    public func getTree() async throws -> TreeNode {
+    @concurrent public func getTree() async throws -> TreeNode {
         return try await rpc.call(method: "get_tree")
     }
 }

@@ -7,15 +7,15 @@ import Foundation
 /// Implement this and wrap it in `FeaturesServer` to serve requests.
 public protocol FeaturesHandler: Sendable {
     /// Returns an employee (allOf composition)
-    func getEmployee() async throws -> Employee
+    @concurrent func getEmployee() async throws -> Employee
     /// Returns an identifier that is either a string or an integer
-    func getId() async throws -> Identifier
+    @concurrent func getId() async throws -> Identifier
     /// Returns a mode drawn from mixed-type constants
-    func getMode() async throws -> Mode
+    @concurrent func getMode() async throws -> Mode
     /// Returns metadata using well-known string formats
-    func getDocument() async throws -> Document
+    @concurrent func getDocument() async throws -> Document
     /// Returns a recursive node defined in an external document
-    func getTree() async throws -> TreeNode
+    @concurrent func getTree() async throws -> TreeNode
 }
 
 /// A transport-agnostic JSON-RPC server for the API: feed request

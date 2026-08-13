@@ -9,16 +9,16 @@ import FoundationNetworking
 /// The generated client's interface. Useful for mocking in tests.
 public protocol PetstoreClientProtocol: Sendable {
     /// List all pets
-    func listPets(limit: Int?) async throws -> Pets
+    @concurrent func listPets(limit: Int?) async throws -> Pets
     /// Create a pet
-    func createPet(newPetName: String, newPetTag: String?) async throws -> Pet
+    @concurrent func createPet(newPetName: String, newPetTag: String?) async throws -> Pet
     /// Info for a specific pet
-    func getPet(petId: Int) async throws -> Pet
+    @concurrent func getPet(petId: Int) async throws -> Pet
     /// Delete a pet
     /// Sent as a JSON-RPC notification: the request carries no id and no response is awaited.
-    func deletePet(petId: Int) async throws
+    @concurrent func deletePet(petId: Int) async throws
     /// Search pets by name
-    func searchPets(query: String) async throws -> SearchResult
+    @concurrent func searchPets(query: String) async throws -> SearchResult
 }
 
 public struct PetstoreClient: PetstoreClientProtocol {
@@ -35,7 +35,7 @@ public struct PetstoreClient: PetstoreClientProtocol {
 
     /// List all pets
     /// - Parameter limit: How many items to return at one time (max 100)
-    public func listPets(limit: Int? = nil) async throws -> Pets {
+    @concurrent public func listPets(limit: Int? = nil) async throws -> Pets {
         struct Params: Encodable, Sendable {
             var limit: Int?
         }
@@ -45,7 +45,7 @@ public struct PetstoreClient: PetstoreClientProtocol {
     /// Create a pet
     /// - Parameter newPetName: Name of pet to create
     /// - Parameter newPetTag: Pet tag to create
-    public func createPet(newPetName: String, newPetTag: String? = nil) async throws -> Pet {
+    @concurrent public func createPet(newPetName: String, newPetTag: String? = nil) async throws -> Pet {
         struct Params: Encodable, Sendable {
             var newPetName: String
             var newPetTag: String?
@@ -55,7 +55,7 @@ public struct PetstoreClient: PetstoreClientProtocol {
 
     /// Info for a specific pet
     /// - Parameter petId: The id of the pet
-    public func getPet(petId: Int) async throws -> Pet {
+    @concurrent public func getPet(petId: Int) async throws -> Pet {
         let params: [AnyJSONRPCParam] = [AnyJSONRPCParam(petId)]
         do {
             return try await rpc.call(method: "get_pet", params: params)
@@ -67,14 +67,14 @@ public struct PetstoreClient: PetstoreClientProtocol {
     /// Delete a pet
     /// Sent as a JSON-RPC notification: the request carries no id and no response is awaited.
     /// - Parameter petId: The id of the pet
-    public func deletePet(petId: Int) async throws {
+    @concurrent public func deletePet(petId: Int) async throws {
         let params: [AnyJSONRPCParam] = [AnyJSONRPCParam(petId)]
         try await rpc.notify(method: "delete_pet", params: params)
     }
 
     /// Search pets by name
     /// - Parameter query: Name fragment to search for
-    public func searchPets(query: String) async throws -> SearchResult {
+    @concurrent public func searchPets(query: String) async throws -> SearchResult {
         let params: [AnyJSONRPCParam] = [AnyJSONRPCParam(query)]
         return try await rpc.call(method: "search_pets", params: params)
     }

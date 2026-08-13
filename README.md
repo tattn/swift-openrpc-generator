@@ -5,13 +5,11 @@ A CLI tool that generates Swift JSON-RPC 2.0 clients and servers from [OpenRPC](
 ## Requirements
 
 - Running the generator: macOS 15+ / Swift 6.3+
-- Using the generated code: macOS 15+ / iOS 18+
+- Using the generated code: macOS 15+ / iOS 18+ / Swift 6.2+
 
 ## Installation
 
 ### Homebrew
-
-This repository works as a Homebrew tap (it bundles `Formula/`):
 
 ```console
 $ brew tap tattn/openrpc https://github.com/tattn/swift-openrpc-generator
@@ -29,12 +27,7 @@ $ cp .build/release/swift-openrpc-generator /usr/local/bin/
 
 ```console
 $ swift-openrpc-generator path/to/openrpc.json -o ./Generated
-Generated: ./Generated/PetstoreClientModels.swift
-Generated: ./Generated/PetstoreClient.swift
-Generated: ./Generated/JSONRPCRuntime.swift
 ```
-
-### Options
 
 | Option | Description |
 | --- | --- |
@@ -51,7 +44,7 @@ The generated code is self-contained with no external dependencies. Add the outp
 | File | Contents |
 | --- | --- |
 | `<Base>Models.swift` | `Codable` models from `components/schemas` and inline schemas, plus the shared error enum |
-| `<Base>Notification.swift` | Server-to-client notifications (methods marked `x-direction: serverToClient`) as one enum both sides share; only emitted when the document declares some |
+| `<Base>Notification.swift` | Server-to-client notifications as one shared enum; only emitted when the document declares some |
 | `<Base>Client.swift` | The client (protocol + struct) with one `async throws` function per method |
 | `<Base>Server.swift` | The server: a `<Base>Handler` protocol your app implements, plus a transport-agnostic dispatcher |
 | `JSONRPCRuntime.swift` | The JSON-RPC 2.0 runtime: envelopes, transports, `JSONValue`, and so on |
@@ -69,9 +62,7 @@ let pet = try await client.createPet(newPetName: "Tama")
 try await client.deletePet(petId: pet.id)
 ```
 
-- The client also conforms to `<Name>Protocol`, so tests can swap in a mock implementation.
-- Non-HTTP transports (WebSocket and others) can be plugged in by passing a type conforming to `JSONRPCTransport` to `init(transport:)`.
-- Server errors are thrown as `JSONRPCError.server(JSONRPCErrorObject)`; errors declared in the document are mapped to a typed enum:
+Errors declared in the document are mapped to a typed enum; anything else surfaces as `JSONRPCError.server`:
 
 ```swift
 do {
@@ -82,6 +73,8 @@ do {
     // any undeclared error code
 }
 ```
+
+The client also conforms to `<Name>Protocol` (so tests can swap in a mock), and non-HTTP transports can be plugged in via `init(transport:)` with any `JSONRPCTransport`.
 
 ### Using the generated server
 
@@ -110,13 +103,19 @@ app.post("rpc") { request async throws -> Response in
 }
 ```
 
-- Params are accepted both by-name (object) and by-position (array), per JSON-RPC 2.0.
-- Batch requests (an array of requests) are answered with an array of responses.
-- Declared errors thrown by the handler (and raw `JSONRPCErrorObject`s) become proper error responses; anything else becomes `-32603 Internal error`.
-- Standard protocol errors (`-32700` parse, `-32600` invalid request, `-32601` method not found, `-32602` invalid params) are handled for you.
-- Notifications (requests without an `id`) get no response, as the spec requires.
+Declared errors thrown by the handler become proper error responses; anything else becomes `-32603 Internal error`. JSON-RPC 2.0 plumbing — by-name and by-position params, batch requests, notifications, and standard protocol errors (`-32700` / `-32600` / `-32601` / `-32602`) — is handled for you.
 
-### Server-to-client notifications
+<details>
+<summary>Actor-isolated handlers</summary>
+
+The handler requirements are `@concurrent`, so witnesses can be actor-isolated (e.g. a `@MainActor` service). Note that a type-level global-actor annotation alone is overridden by the `@concurrent` inferred from the requirement (SE-0461) — annotate each witness method explicitly.
+
+</details>
+
+## Advanced
+
+<details>
+<summary><b>Server-to-client notifications</b> — push notifications from the server via the <code>x-direction</code> extension</summary>
 
 OpenRPC has no standard way to describe notifications the server pushes to
 clients, so this generator uses the `x-direction` extension: mark a method
@@ -154,7 +153,10 @@ if let notification = try PetstoreNotification.decode(body) {
 `"serverToClient"`. A `result` or `errors` on a serverToClient method is
 ignored with a warning: notifications get no response.
 
-### WebSocket and peer-to-peer connections
+</details>
+
+<details>
+<summary><b>WebSocket and peer-to-peer connections</b> — persistent connections that serve both directions</summary>
 
 `WebSocketJSONRPCTransport` keeps one persistent connection with concurrent
 in-flight calls, and can serve the peer's requests over the same socket:
@@ -174,7 +176,10 @@ The underlying `JSONRPCConnection` is pipe-agnostic: on the accepting side
 its `send` closure to the socket's write and feed incoming messages to
 `receive(_:)` — id correlation and request dispatch are handled for you.
 
-### Batching
+</details>
+
+<details>
+<summary><b>Batching</b> — collect concurrent calls into one JSON-RPC batch request</summary>
 
 `JSONRPCBatcher` collects concurrent calls into one JSON-RPC batch request.
 It flushes automatically once the expected number of calls has been buffered:
@@ -187,13 +192,20 @@ async let pets = client.listPets()
 let (first, second) = try await (pet, pets)  // one round trip
 ```
 
+</details>
+
 ## Supported OpenRPC / JSON Schema features
+
+Method `params` / `result` / `errors`, `paramStructure`, `$ref` resolution (including external documents), `allOf` / `oneOf` / `anyOf`, enums, formats (`date-time`, `uuid`, `byte`, `uri`), and recursive schemas are supported.
+
+<details>
+<summary>Full list</summary>
 
 - Method `params` / `result`, `paramStructure`, and `deprecated`
 - Method `errors` → a shared typed error enum: clients catch declared codes as `<Base>Error.petNotFound(...)`-style cases (undeclared codes still surface as `JSONRPCError.server`), and server handlers throw them via static factories
 - Params are sent by-position (as an array) by default, and as an object only when `paramStructure: "by-name"` is specified — the same behavior as the official [open-rpc/generator](https://github.com/open-rpc/generator)
 - Methods without a `result` are sent as JSON-RPC notifications (no `id`, no response awaited)
-- The `x-direction: "serverToClient"` extension → a shared notification enum for server-pushed notifications (see [Server-to-client notifications](#server-to-client-notifications))
+- The `x-direction: "serverToClient"` extension → a shared notification enum for server-pushed notifications (see "Server-to-client notifications" above)
 - `$ref` to `#/components/schemas/...` and `#/components/contentDescriptors/...`; `$ref`s to external documents (relative paths, or http(s) URLs with `--allow-remote-refs`) and `$ref`s inside `methods` are resolved by dereferencing the document before generation. External schemas on a reference cycle are hoisted into `components/schemas` automatically
 - `type: object` + `properties` → `struct` (optionality driven by `required`)
 - `allOf` → a single `struct` merging the properties of every branch (and the enclosing schema's own properties)
@@ -204,10 +216,15 @@ let (first, second) = try await (pet, pets)  // one round trip
 - Recursive schemas: self-referencing properties are stored in a copy-on-write `Indirect` box (the public API stays the plain type), and unions on a cycle become `indirect enum`s
 - Inline schemas are synthesized as types named after the method or property (for example, the result of `get_state` becomes `GetStateResult`)
 
-### Limitations
+</details>
+
+<details>
+<summary>Limitations</summary>
 
 The following cannot be represented and fall back to `JSONValue` (an arbitrary JSON value), with a warning at generation time:
 
 - `allOf` containing branches that are not object schemas
 - `enum` values that are arrays or objects
 - Cyclic references through non-schema locations (for example, a method definition that references itself)
+
+</details>

@@ -68,7 +68,7 @@ struct ClientRenderer {
         if method.deprecated {
             lines.append("@available(*, deprecated)")
         }
-        lines.append("\(access.prefix)\(methodSignature(method, includeDefaults: true)) {")
+        lines.append("@concurrent \(access.prefix)\(methodSignature(method, includeDefaults: true)) {")
 
         let methodLiteral = swiftStringLiteral(method.rpcName)
         // Methods without a result are sent as JSON-RPC notifications.

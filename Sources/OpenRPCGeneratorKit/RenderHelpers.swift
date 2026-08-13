@@ -46,6 +46,11 @@ func swiftStringLiteral(_ text: String) -> String {
 
 /// The Swift signature of a method, shared by the client protocol, the client
 /// implementation, and the server handler protocol so they always agree.
+/// Rendered with a `@concurrent` prefix at the call sites: it keeps the
+/// execution semantics independent of the consumer's
+/// NonisolatedNonsendingByDefault setting and, on the protocols, lets
+/// actor-isolated implementations (e.g. a @MainActor handler) witness the
+/// requirements.
 func methodSignature(_ method: MethodDecl, includeDefaults: Bool) -> String {
     let params = method.params.map { param in
         let defaultValue = includeDefaults && param.optional ? " = nil" : ""
@@ -82,7 +87,7 @@ func renderProtocolDecl(
         if method.deprecated {
             lines.append("    @available(*, deprecated)")
         }
-        lines.append("    \(methodSignature(method, includeDefaults: false))")
+        lines.append("    @concurrent \(methodSignature(method, includeDefaults: false))")
     }
     lines.append("}")
     return lines.joined(separator: "\n")

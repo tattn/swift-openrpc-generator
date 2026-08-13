@@ -7,15 +7,15 @@ import Foundation
 /// Implement this and wrap it in `PetstoreServer` to serve requests.
 public protocol PetstoreHandler: Sendable {
     /// List all pets
-    func listPets(limit: Int?) async throws -> Pets
+    @concurrent func listPets(limit: Int?) async throws -> Pets
     /// Create a pet
-    func createPet(newPetName: String, newPetTag: String?) async throws -> Pet
+    @concurrent func createPet(newPetName: String, newPetTag: String?) async throws -> Pet
     /// Info for a specific pet
-    func getPet(petId: Int) async throws -> Pet
+    @concurrent func getPet(petId: Int) async throws -> Pet
     /// Delete a pet
-    func deletePet(petId: Int) async throws
+    @concurrent func deletePet(petId: Int) async throws
     /// Search pets by name
-    func searchPets(query: String) async throws -> SearchResult
+    @concurrent func searchPets(query: String) async throws -> SearchResult
 }
 
 /// A transport-agnostic JSON-RPC server for the API: feed request
