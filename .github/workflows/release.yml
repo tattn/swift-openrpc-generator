@@ -1,18 +1,41 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.2.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Create GitHub release
+    name: Tag and create GitHub release
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
+
+      - name: Resolve version
+        run: |
+          VERSION="v${INPUT_VERSION#v}"
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version '$INPUT_VERSION' (expected semver such as 0.2.0)"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
 
       - name: Test
         run: swift test
@@ -23,19 +46,36 @@ jobs:
       - name: Package binary
         run: |
           BINARY=.build/apple/Products/Release/swift-openrpc-generator
-          tar -czf "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz" -C "$(dirname "$BINARY")" swift-openrpc-generator
+          tar -czf "swift-openrpc-generator-$VERSION-macos.tar.gz" -C "$(dirname "$BINARY")" swift-openrpc-generator
+
+      # Everything above must pass before the tag exists, so a failing build can
+      # never leave a broken tag behind.
+      - name: Create tag
+        id: tag
+        run: |
+          git tag "$VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/$VERSION"
 
       - name: Compute checksums
         run: |
+          URL="https://github.com/$GITHUB_REPOSITORY/archive/refs/tags/$VERSION.tar.gz"
+          for attempt in 1 2 3 4 5; do
+            curl -fsSL "$URL" -o source.tar.gz && break
+            echo "Source tarball not available yet (attempt $attempt); retrying..."
+            sleep 5
+          done
+          if [ ! -f source.tar.gz ]; then
+            echo "::error::Could not download $URL"
+            exit 1
+          fi
           {
             echo '## Checksums'
             echo
             echo '```'
-            shasum -a 256 "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz"
+            shasum -a 256 "swift-openrpc-generator-$VERSION-macos.tar.gz"
             echo
             echo '# Source tarball (use this sha256 in Formula/swift-openrpc-generator.rb):'
-            curl -sL "https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.ref_name }}.tar.gz" \
-              | shasum -a 256 | sed 's/-$/'"${{ github.ref_name }}"'.tar.gz/'
+            shasum -a 256 source.tar.gz | sed "s|source\.tar\.gz$|$VERSION.tar.gz|"
             echo '```'
           } > release-notes.md
 
@@ -43,7 +83,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
+          gh release create "$VERSION" \
+            --title "$VERSION" \
             --notes-file release-notes.md \
-            "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz"
+            "swift-openrpc-generator-$VERSION-macos.tar.gz"
+
+      - name: Delete tag on failure
+        if: failure() && steps.tag.outcome == 'success'
+        run: |
+          gh release delete "$VERSION" --yes 2>/dev/null || true
+          git push origin --delete "refs/tags/$VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -5,7 +5,7 @@ A CLI tool that generates Swift JSON-RPC 2.0 clients and servers from [OpenRPC](
 ## Requirements
 
 - Running the generator: macOS 15+ / Swift 6.3+
-- Using the generated code: macOS 15+ / iOS 18+ (compatible with Swift 6 strict concurrency)
+- Using the generated code: macOS 15+ / iOS 18+
 
 ## Installation
 
@@ -15,8 +15,7 @@ This repository works as a Homebrew tap (it bundles `Formula/`):
 
 ```console
 $ brew tap tattn/openrpc https://github.com/tattn/swift-openrpc-generator
-$ brew install tattn/openrpc/swift-openrpc-generator      # builds from the latest release tag
-$ brew install --HEAD tattn/openrpc/swift-openrpc-generator  # before the first release: builds from main
+$ brew install tattn/openrpc/swift-openrpc-generator
 ```
 
 ### From source
@@ -172,8 +171,3 @@ The following cannot be represented and fall back to `JSONValue` (an arbitrary J
 - `allOf` containing branches that are not object schemas
 - `enum` values that are arrays or objects
 - Cyclic references through non-schema locations (for example, a method definition that references itself)
-
-## Documentation
-
-- [Development guide](docs/development.md) — building, testing, project structure, CI
-- [Release guide](docs/release.md) — tagging releases and updating the Homebrew formula

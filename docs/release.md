@@ -3,22 +3,31 @@
 ## Versioning
 
 The CLI version lives in `Sources/swift-openrpc-generator/OpenRPCGeneratorCommand.swift`
-(`CommandConfiguration(version:)`). Bump it before tagging.
+(`CommandConfiguration(version:)`). Bump it before releasing.
 
 ## Creating a release
 
-1. Update the version constant and commit.
-2. Tag and push:
+Tags are created *by* the Release workflow, not by hand — the tag is pushed only
+after the tests and the release build have passed, so a failed run can never
+leave a broken tag behind.
+
+1. Update the version constant and merge it into `main`.
+2. Run the Release workflow (`.github/workflows/release.yml`) from the Actions tab
+   ("Run workflow") against the ref you want to release, entering the version
+   (`0.2.0`; a leading `v` is accepted). Or from the CLI:
 
    ```console
-   $ git tag v0.2.0
-   $ git push origin v0.2.0
+   $ gh workflow run release.yml --ref main -f version=0.2.0
    ```
 
-3. The Release workflow (`.github/workflows/release.yml`) runs the tests, builds a
-   universal (arm64 + x86_64) binary, and creates a GitHub release with:
+3. The workflow validates the version, refuses to continue if the tag already
+   exists, runs the tests, builds a universal (arm64 + x86_64) binary, then tags
+   the commit and creates a GitHub release with:
    - `swift-openrpc-generator-v<version>-macos.tar.gz` — the prebuilt binary
    - Release notes containing the sha256 of both the binary and the source tarball
+
+   If a step after tagging fails, the workflow deletes the tag (and any partial
+   release) so the run can simply be retried.
 
 ## Updating the Homebrew formula
 
