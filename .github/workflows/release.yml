@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub release
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Test
+        run: swift test
+
+      - name: Build universal binary
+        run: swift build --configuration release --arch arm64 --arch x86_64
+
+      - name: Package binary
+        run: |
+          BINARY=.build/apple/Products/Release/swift-openrpc-generator
+          tar -czf "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz" -C "$(dirname "$BINARY")" swift-openrpc-generator
+
+      - name: Compute checksums
+        run: |
+          {
+            echo '## Checksums'
+            echo
+            echo '```'
+            shasum -a 256 "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz"
+            echo
+            echo '# Source tarball (use this sha256 in Formula/swift-openrpc-generator.rb):'
+            curl -sL "https://github.com/${{ github.repository }}/archive/refs/tags/${{ github.ref_name }}.tar.gz" \
+              | shasum -a 256 | sed 's/-$/'"${{ github.ref_name }}"'.tar.gz/'
+            echo '```'
+          } > release-notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file release-notes.md \
+            "swift-openrpc-generator-${{ github.ref_name }}-macos.tar.gz"

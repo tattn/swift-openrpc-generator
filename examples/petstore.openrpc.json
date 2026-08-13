@@ -1,0 +1,143 @@
+{
+  "openrpc": "1.2.6",
+  "info": {
+    "title": "Petstore",
+    "version": "1.0.0",
+    "description": "A sample Petstore API described with OpenRPC"
+  },
+  "methods": [
+    {
+      "name": "list_pets",
+      "summary": "List all pets",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "limit",
+          "description": "How many items to return at one time (max 100)",
+          "required": false,
+          "schema": { "type": "integer" }
+        }
+      ],
+      "result": {
+        "name": "pets",
+        "description": "A paged array of pets",
+        "schema": { "$ref": "#/components/schemas/Pets" }
+      }
+    },
+    {
+      "name": "create_pet",
+      "summary": "Create a pet",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "newPetName",
+          "description": "Name of pet to create",
+          "required": true,
+          "schema": { "type": "string" }
+        },
+        {
+          "name": "newPetTag",
+          "description": "Pet tag to create",
+          "schema": { "type": "string" }
+        }
+      ],
+      "result": {
+        "name": "pet",
+        "schema": { "$ref": "#/components/schemas/Pet" }
+      }
+    },
+    {
+      "name": "get_pet",
+      "summary": "Info for a specific pet",
+      "paramStructure": "by-position",
+      "params": [
+        { "$ref": "#/components/contentDescriptors/PetId" }
+      ],
+      "result": {
+        "name": "pet",
+        "description": "Expected response to a valid request",
+        "schema": { "$ref": "#/components/schemas/Pet" }
+      },
+      "errors": [
+        { "$ref": "#/components/errors/PetNotFound" }
+      ]
+    },
+    {
+      "name": "delete_pet",
+      "summary": "Delete a pet",
+      "paramStructure": "by-position",
+      "params": [
+        { "$ref": "#/components/contentDescriptors/PetId" }
+      ]
+    },
+    {
+      "name": "search_pets",
+      "summary": "Search pets by name",
+      "params": [
+        {
+          "name": "query",
+          "description": "Name fragment to search for",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "result": {
+        "name": "found",
+        "description": "A single exact match, or a list of candidates",
+        "schema": { "$ref": "#/components/schemas/SearchResult" }
+      }
+    }
+  ],
+  "components": {
+    "errors": {
+      "PetNotFound": {
+        "code": 40400,
+        "message": "Pet not found"
+      }
+    },
+    "contentDescriptors": {
+      "PetId": {
+        "name": "petId",
+        "description": "The id of the pet",
+        "required": true,
+        "schema": { "type": "integer" }
+      }
+    },
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "description": "A pet in the pet store",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "tag": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/PetStatus" },
+          "size": { "$ref": "#/components/schemas/PetSize" },
+          "parent": { "$ref": "#/components/schemas/Pet" }
+        }
+      },
+      "PetStatus": {
+        "type": "string",
+        "description": "Status of a pet",
+        "enum": ["available", "pending", "sold-out"]
+      },
+      "PetSize": {
+        "type": "integer",
+        "description": "Size category of a pet",
+        "enum": [1, 2, 3]
+      },
+      "Pets": {
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/Pet" }
+      },
+      "SearchResult": {
+        "description": "Either a single exact match or a list of candidates",
+        "oneOf": [
+          { "$ref": "#/components/schemas/Pet" },
+          { "$ref": "#/components/schemas/Pets" }
+        ]
+      }
+    }
+  }
+}

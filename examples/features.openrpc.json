@@ -1,0 +1,96 @@
+{
+  "openrpc": "1.3.2",
+  "info": {
+    "title": "Features",
+    "version": "1.0.0",
+    "description": "Exercises schema features beyond the Petstore basics"
+  },
+  "methods": [
+    {
+      "name": "get_employee",
+      "summary": "Returns an employee (allOf composition)",
+      "params": [],
+      "result": {
+        "name": "employee",
+        "schema": { "$ref": "#/components/schemas/Employee" }
+      }
+    },
+    {
+      "name": "get_id",
+      "summary": "Returns an identifier that is either a string or an integer",
+      "params": [],
+      "result": {
+        "name": "id",
+        "schema": { "$ref": "#/components/schemas/Identifier" }
+      }
+    },
+    {
+      "name": "get_mode",
+      "summary": "Returns a mode drawn from mixed-type constants",
+      "params": [],
+      "result": {
+        "name": "mode",
+        "schema": { "$ref": "#/components/schemas/Mode" }
+      }
+    },
+    {
+      "name": "get_document",
+      "summary": "Returns metadata using well-known string formats",
+      "params": [],
+      "result": {
+        "name": "document",
+        "schema": { "$ref": "#/components/schemas/Document" }
+      }
+    },
+    {
+      "name": "get_tree",
+      "summary": "Returns a recursive node defined in an external document",
+      "params": [],
+      "result": {
+        "name": "tree",
+        "schema": { "$ref": "features-shared.json#/schemas/TreeNode" }
+      }
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Person": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" }
+        }
+      },
+      "Employee": {
+        "description": "A person with employment details",
+        "allOf": [
+          { "$ref": "#/components/schemas/Person" },
+          {
+            "type": "object",
+            "required": ["employeeId"],
+            "properties": {
+              "employeeId": { "type": "integer" }
+            }
+          }
+        ]
+      },
+      "Identifier": {
+        "type": ["string", "integer"]
+      },
+      "Document": {
+        "type": "object",
+        "required": ["id", "createdAt"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "payload": { "type": "string", "format": "byte" },
+          "link": { "type": "string", "format": "uri" }
+        }
+      },
+      "Mode": {
+        "description": "Automatic, or an explicit numeric level",
+        "enum": ["auto", 0, 1]
+      }
+    }
+  }
+}
