@@ -409,12 +409,15 @@ enum RuntimeTemplate {
                         // response is assembled without re-encoding.
                         return joinedJSONArray(responses)
                     }
-                    let request = try? JSONRPCCoding.decoder().decode(JSONRPCServerRequest.self, from: body)
-                    return await respond(to: request, dispatch: dispatch)
+                    guard let element = try? JSONRPCCoding.decoder().decode(LenientRequest.self, from: body) else {
+                        return errorResponse(id: .null, error: parseError)
+                    }
+                    return await respond(to: element.request, dispatch: dispatch)
                 }
 
                 private static let jsonWhitespace = Set(" \\t\\r\\n".utf8)
                 private static let parseError = JSONRPCErrorObject(code: -32700, message: "Parse error")
+                private static let invalidRequest = JSONRPCErrorObject(code: -32600, message: "Invalid request")
 
                 /// A batch element decoded leniently: `request` is nil when the
                 /// element is not a structurally valid request, so it gets its
@@ -432,7 +435,7 @@ enum RuntimeTemplate {
                     dispatch: (JSONRPCServerRequest) async throws -> Data?
                 ) async -> Data? {
                     guard let request else {
-                        return errorResponse(id: .null, error: parseError)
+                        return errorResponse(id: .null, error: invalidRequest)
                     }
                     guard request.jsonrpc == "2.0" else {
                         let error = JSONRPCErrorObject(code: -32600, message: "Invalid request: jsonrpc must be \\"2.0\\"")
