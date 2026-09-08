@@ -58,24 +58,14 @@ jobs:
 
       - name: Compute checksums
         run: |
-          URL="https://github.com/$GITHUB_REPOSITORY/archive/refs/tags/$VERSION.tar.gz"
-          for attempt in 1 2 3 4 5; do
-            curl -fsSL "$URL" -o source.tar.gz && break
-            echo "Source tarball not available yet (attempt $attempt); retrying..."
-            sleep 5
-          done
-          if [ ! -f source.tar.gz ]; then
-            echo "::error::Could not download $URL"
-            exit 1
-          fi
+          ASSET="swift-openrpc-generator-$VERSION-macos.tar.gz"
+          SHA256="$(shasum -a 256 "$ASSET" | cut -d" " -f1)"
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
           {
             echo '## Checksums'
             echo
             echo '```'
-            shasum -a 256 "swift-openrpc-generator-$VERSION-macos.tar.gz"
-            echo
-            echo '# Source tarball (use this sha256 in Formula/swift-openrpc-generator.rb):'
-            shasum -a 256 source.tar.gz | sed "s|source\.tar\.gz$|$VERSION.tar.gz|"
+            echo "$SHA256  $ASSET"
             echo '```'
           } > release-notes.md
 
@@ -87,6 +77,28 @@ jobs:
             --title "$VERSION" \
             --notes-file release-notes.md \
             "swift-openrpc-generator-$VERSION-macos.tar.gz"
+
+      # The formula points at the release asset, so it can only be bumped once the
+      # release exists.
+      - name: Update Homebrew formula
+        run: |
+          FORMULA=Formula/swift-openrpc-generator.rb
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/swift-openrpc-generator-$VERSION-macos.tar.gz"
+          # Anchoring on the two-space indent keeps the `head` block's url untouched.
+          sed -i "" -E \
+            -e "s|^  url \".*\"|  url \"$URL\"|" \
+            -e "s|^  sha256 \".*\"|  sha256 \"$SHA256\"|" \
+            "$FORMULA"
+          grep -qF "url \"$URL\"" "$FORMULA" || { echo "::error::Failed to update url in $FORMULA"; exit 1; }
+          grep -qF "sha256 \"$SHA256\"" "$FORMULA" || { echo "::error::Failed to update sha256 in $FORMULA"; exit 1; }
+          if git diff --quiet -- "$FORMULA"; then
+            echo "$FORMULA is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update Homebrew formula to $VERSION" -- "$FORMULA"
+          git push origin "HEAD:$GITHUB_REF_NAME"
 
       - name: Delete tag on failure
         if: failure() && steps.tag.outcome == 'success'

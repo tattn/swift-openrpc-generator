@@ -12,6 +12,7 @@ A CLI tool that generates Swift JSON-RPC 2.0 clients and servers from [OpenRPC](
 ### Homebrew
 
 ```console
+$ brew trust https://github.com/tattn/swift-openrpc-generator
 $ brew tap tattn/openrpc https://github.com/tattn/swift-openrpc-generator
 $ brew install tattn/openrpc/swift-openrpc-generator
 ```

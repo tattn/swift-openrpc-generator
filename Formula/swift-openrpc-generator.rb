@@ -1,26 +1,37 @@
 # Homebrew formula for swift-openrpc-generator.
 #
-# This repository itself works as a tap because Homebrew picks up Formula/:
+# This repository itself works as a tap because Homebrew picks up Formula/.
+# Homebrew requires third-party taps to be trusted, and a tap with a custom
+# remote can only be trusted by its remote URL:
+#   brew trust https://github.com/tattn/swift-openrpc-generator
 #   brew tap tattn/openrpc https://github.com/tattn/swift-openrpc-generator
 #   brew install tattn/openrpc/swift-openrpc-generator
 #
-# Before the first release, fill in sha256 below with the value printed by the
-# Release workflow (.github/workflows/release.yml).
-# Until a release tag exists, install from the default branch instead:
-#   brew install --HEAD tattn/openrpc/swift-openrpc-generator
+# `url`/`sha256` below point at the universal macOS binary published by the
+# Release workflow (.github/workflows/release.yml), which bumps them on release.
 class SwiftOpenrpcGenerator < Formula
   desc "Generate Swift JSON-RPC client code from OpenRPC documents"
   homepage "https://github.com/tattn/swift-openrpc-generator"
-  url "https://github.com/tattn/swift-openrpc-generator/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "REPLACE_WITH_SOURCE_TARBALL_SHA256"
-  head "https://github.com/tattn/swift-openrpc-generator.git", branch: "main"
+  url "https://github.com/tattn/swift-openrpc-generator/releases/download/v1.0.2/swift-openrpc-generator-v1.0.2-macos.tar.gz"
+  sha256 "d3af8596ab7d20b8613b949c65155355be11de6f01a19865582badf2567d27f0"
+  license "Apache-2.0"
 
-  depends_on xcode: ["26.3", :build]
+  head do
+    url "https://github.com/tattn/swift-openrpc-generator.git", branch: "main"
+
+    depends_on xcode: ["26.3", :build]
+  end
+
+  depends_on :macos
 
   def install
-    # SwiftPM's own sandbox cannot start inside Homebrew's build sandbox.
-    system "swift", "build", "--configuration", "release", "--disable-sandbox"
-    bin.install ".build/release/swift-openrpc-generator"
+    if build.head?
+      # SwiftPM's own sandbox cannot start inside Homebrew's build sandbox.
+      system "swift", "build", "--configuration", "release", "--disable-sandbox"
+      bin.install ".build/release/swift-openrpc-generator"
+    else
+      bin.install "swift-openrpc-generator"
+    end
   end
 
   test do
@@ -39,7 +50,8 @@ class SwiftOpenrpcGenerator < Formula
     JSON
     system bin/"swift-openrpc-generator", testpath/"api.json", "--output", testpath/"Generated"
     assert_path_exists testpath/"Generated/PingClient.swift"
-    assert_path_exists testpath/"Generated/PingClientModels.swift"
+    assert_path_exists testpath/"Generated/PingModels.swift"
+    assert_path_exists testpath/"Generated/PingServer.swift"
     assert_path_exists testpath/"Generated/JSONRPCRuntime.swift"
     assert_match "func ping()", (testpath/"Generated/PingClient.swift").read
   end
