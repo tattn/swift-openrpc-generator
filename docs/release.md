@@ -21,7 +21,8 @@ leave a broken tag behind.
    ```
 
 3. The workflow validates the version, refuses to continue if the tag already
-   exists, runs the tests, builds a universal (arm64 + x86_64) binary, then tags
+   exists or the version constant differs, runs the tests, builds a universal
+   (arm64 + x86_64) binary, then tags
    the commit and creates a GitHub release with:
    - `swift-openrpc-generator-v<version>-macos.tar.gz` — the prebuilt binary
    - Release notes containing the sha256 of both the binary and the source tarball

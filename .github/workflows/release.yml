@@ -33,6 +33,11 @@ jobs:
             echo "::error::Tag $VERSION already exists"
             exit 1
           fi
+          VERSION_FILE=Sources/swift-openrpc-generator/OpenRPCGeneratorCommand.swift
+          if ! grep -qF "version: \"${VERSION#v}\"" "$VERSION_FILE"; then
+            echo "::error::$VERSION_FILE does not declare version ${VERSION#v}"
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
         env:
           INPUT_VERSION: ${{ inputs.version }}

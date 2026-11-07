@@ -7,7 +7,7 @@ struct OpenRPCGeneratorCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swift-openrpc-generator",
         abstract: "Generate a Swift JSON-RPC client and server from an OpenRPC document.",
-        version: "0.1.0"
+        version: "1.0.4"
     )
 
     enum ComponentSelection: String, ExpressibleByArgument {
