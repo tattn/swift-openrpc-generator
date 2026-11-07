@@ -12,8 +12,8 @@
 class SwiftOpenrpcGenerator < Formula
   desc "Generate Swift JSON-RPC client code from OpenRPC documents"
   homepage "https://github.com/tattn/swift-openrpc-generator"
-  url "https://github.com/tattn/swift-openrpc-generator/releases/download/v1.0.2/swift-openrpc-generator-v1.0.2-macos.tar.gz"
-  sha256 "d3af8596ab7d20b8613b949c65155355be11de6f01a19865582badf2567d27f0"
+  url "https://github.com/tattn/swift-openrpc-generator/releases/download/v1.0.3/swift-openrpc-generator-v1.0.3-macos.tar.gz"
+  sha256 "c1cb5ce3e24b6af2eb1ac0eea24df7b9cd7e06d499285a3115081ab77ab191be"
   license "Apache-2.0"
 
   head do
